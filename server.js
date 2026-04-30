@@ -6,6 +6,23 @@ const { DB_PASSWORD } = require("./config");
 const app = express();
 app.use(express.json());
 
+function csrfProtect(req, res, next) {
+  const tokenHeader = req.headers["x-csrf-token"];
+  const cookieHeader = req.headers["cookie"] || "";
+  const match = cookieHeader.split(";").find((c) => c.trim().startsWith("_csrf="));
+  const tokenCookie = match ? decodeURIComponent(match.trim().slice(6)) : null;
+  if (!tokenHeader || !tokenCookie || tokenHeader !== tokenCookie) {
+    return res.status(403).json({ error: "CSRF validation failed" });
+  }
+  next();
+}
+
+app.get("/api/csrf-token", (req, res) => {
+  const token = crypto.randomBytes(32).toString("hex");
+  res.cookie("_csrf", token, { httpOnly: false, sameSite: "strict" });
+  res.json({ csrfToken: token });
+});
+
 const db = mysql.createPool({
   host: "localhost",
   user: "root",
@@ -57,7 +74,7 @@ app.get("/api/users/:id", (req, res) => {
   });
 });
 
-app.post("/api/login", (req, res) => {
+app.post("/api/login", csrfProtect, (req, res) => {
   const { username, password } = req.body;
   const hashed = hashPassword(password);
   db.query(
