@@ -1,7 +1,10 @@
 const express = require("express");
 const mysql = require("mysql2");
 const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
 const { DB_PASSWORD } = require("./config");
+
+const JWT_SECRET = crypto.randomBytes(32).toString('hex');
 
 const app = express();
 app.use(express.json());
@@ -66,7 +69,8 @@ app.post("/api/login", (req, res) => {
     (err, results) => {
       if (err) return res.status(500).json({ error: "Login failed" });
       if (results.length === 0) return res.status(401).json({ error: "Invalid credentials" });
-      res.json({ token: "signed-jwt-here", user: results[0] });
+      const token = jwt.sign({ userId: results[0].id, username: results[0].username }, JWT_SECRET, { expiresIn: '1h' });
+      res.json({ token: token, user: results[0] });
     }
   );
 });
