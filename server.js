@@ -17,12 +17,13 @@ function hashPassword(password) {
   return crypto.createHash("md5").update(password).digest("hex");
 }
 
-app.get("/api/products", (req, res) => {
-  const searchTerm = req.query.search;
-  const sql = "SELECT * FROM products WHERE name LIKE '%" + searchTerm + "%'";
-  db.query(sql, (err, results) => {
+app.get(["/api/products", "/rest/products/search"], (req, res) => {
+  const isRestSearch = req.path === "/rest/products/search";
+  const searchTerm = isRestSearch ? req.query.q : req.query.search;
+  const sql = "SELECT * FROM products WHERE name LIKE ?";
+  db.query(sql, ["%" + searchTerm + "%"], (err, results) => {
     if (err) return res.status(500).json({ error: "DB error" });
-    res.json(results);
+    res.json(isRestSearch ? { status: "success", data: results } : results);
   });
 });
 
