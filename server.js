@@ -6,6 +6,35 @@ const { DB_PASSWORD } = require("./config");
 const app = express();
 app.use(express.json());
 
+app.get("/", (req, res) => {
+  const nonce = crypto.randomBytes(16).toString("base64");
+  res.set("Content-Security-Policy", `script-src 'nonce-${nonce}'; object-src 'none'`);
+  res.type("html").send(`<!doctype html>
+<html><head><title>Product search</title></head><body>
+<h1 id="search-heading"></h1><ul id="products"></ul>
+<script nonce="${nonce}">
+function renderSearch() {
+  const [path, query = ""] = location.hash.slice(1).split("?");
+  if (path !== "/search") return;
+  const term = new URLSearchParams(query).get("q") || "";
+  document.getElementById("search-heading").textContent = "Search results for " + term;
+  fetch("/api/products?search=" + encodeURIComponent(term))
+    .then(response => response.json())
+    .then(products => {
+      const list = document.getElementById("products");
+      list.replaceChildren();
+      products.forEach(product => {
+        const item = document.createElement("li");
+        item.textContent = product.name;
+        list.append(item);
+      });
+    });
+}
+addEventListener("hashchange", renderSearch);
+renderSearch();
+</script></body></html>`);
+});
+
 const db = mysql.createPool({
   host: "localhost",
   user: "root",
